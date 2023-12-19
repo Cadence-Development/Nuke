@@ -271,7 +271,7 @@ private final class ImageViewController {
 
         // Quick synchronous memory cache lookup.
         if let image = pipeline.cache[request] {
-            display(image, true, .success)
+            display(image, .memory, .success)
             if !image.isPreview { // Final image was downloaded
                 completion?(.success(ImageResponse(container: image, request: request, cacheType: .memory)))
                 return nil // No task to perform
@@ -280,7 +280,7 @@ private final class ImageViewController {
 
         // Display a placeholder.
         if let placeholder = options.placeholder {
-            display(ImageContainer(image: placeholder), true, .placeholder)
+            display(ImageContainer(image: placeholder), .memory, .placeholder)
         } else if options.isPrepareForReuseEnabled {
             imageView.nuke_display(image: nil, data: nil) // Remove previously displayed images (if any)
         }
@@ -307,22 +307,22 @@ private final class ImageViewController {
     private func handle(result: Result<ImageResponse, ImagePipeline.Error>, isFromMemory: Bool) {
         switch result {
         case let .success(response):
-            display(response.container, isFromMemory, .success)
+                display(response.container, response.cacheType, .success)
         case .failure:
             if let failureImage = options.failureImage {
-                display(ImageContainer(image: failureImage), isFromMemory, .failure)
+                display(ImageContainer(image: failureImage), nil, .failure)
             }
         }
         self.task = nil
     }
 
     private func handle(partialImage response: ImageResponse) {
-        display(response.container, false, .success)
+        display(response.container, nil, .success)
     }
 
 #if os(iOS) || os(tvOS) || os(macOS)
 
-    private func display(_ image: ImageContainer, _ isFromMemory: Bool, _ response: ImageLoadingOptions.ResponseType) {
+    private func display(_ image: ImageContainer, _ cacheSource: ImageResponse.CacheType?, _ response: ImageLoadingOptions.ResponseType) {
         guard let imageView = imageView else {
             return
         }
@@ -336,7 +336,9 @@ private final class ImageViewController {
         }
 #endif
 
-        if !isFromMemory || options.alwaysTransition, let transition = options.transition(for: response) {
+        let isFromCache = cacheSource == .memory || cacheSource == .disk
+        let applyTransition = !isFromCache || (cacheSource == .disk && options.transitionWhenFromDisk)
+        if applyTransition || options.alwaysTransition, let transition = options.transition(for: response) {
             switch transition.style {
             case let .fadeIn(params):
                 runFadeInTransition(image: image, params: params, response: response)

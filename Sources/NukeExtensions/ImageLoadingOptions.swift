@@ -36,6 +36,8 @@ public struct ImageLoadingOptions {
     /// If true, the requested image will always appear with transition, even
     /// when loaded from cache.
     public var alwaysTransition = false
+    
+    public var transitionWhenFromDisk = false
 
     func transition(for response: ResponseType) -> Transition? {
         switch response {
